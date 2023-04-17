@@ -66,15 +66,20 @@ func (d *diffingOrchestrator) getRequestsToForward(req *http.Request) (*http.Req
 }
 
 func (d *diffingOrchestrator) diffResponses(wg *sync.WaitGroup, req *http.Request, defaultResp, alternativeResp *httptest.ResponseRecorder) {
+	defer func() {
+		if p := recover(); p != nil {
+			d.reporter.ReportError(req, fmt.Errorf("http-strangler: panic during diffing: %v", p))
+		}
+	}()
 	wg.Wait() // Wait for both requests to finish.
 
 	var defaultJSON, alternativeJSON any
 
 	if err := json.Unmarshal(defaultResp.Body.Bytes(), &defaultJSON); err != nil {
-		d.reporter.ReportError(req, fmt.Errorf("failed to unmarshal default json: %w", err))
+		d.reporter.ReportError(req, fmt.Errorf("http-strangler: failed to unmarshal default json: %w", err))
 	}
 	if err := json.Unmarshal(alternativeResp.Body.Bytes(), &alternativeJSON); err != nil {
-		d.reporter.ReportError(req, fmt.Errorf("failed to unmarshal alternative json: %w", err))
+		d.reporter.ReportError(req, fmt.Errorf("http-strangler: failed to unmarshal alternative json: %w", err))
 	}
 	defaultResponse := &Response{
 		Headers:    defaultResp.Header(),
